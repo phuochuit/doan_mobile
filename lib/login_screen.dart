@@ -66,9 +66,7 @@ class _LoginScreenState extends State<LoginScreen> {
           }
           return;
         }
-
         String role = userData['role'];
-
         if (mounted) {
           Navigator.pushReplacement(
             context,
