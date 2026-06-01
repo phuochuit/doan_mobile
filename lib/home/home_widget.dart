@@ -8,6 +8,7 @@ import 'package:doan_mobile/user_avatar.dart';
 import 'package:doan_mobile/admin_tools/add_employee_screen.dart';
 import 'package:doan_mobile/admin_tools/edit_employee_screen.dart';
 import 'package:doan_mobile/admin_tools/employee_list_screen.dart';
+import 'package:doan_mobile/admin_tools/admin_request_screen.dart';
 
 class HomeHeader extends StatelessWidget {
   const HomeHeader({super.key});
@@ -273,6 +274,7 @@ class HomeIconGrid extends StatelessWidget {
             gridItems.addAll([
               {"icon": Icons.groups_outlined, "label": "Danh sách\nnhân sự"},
               {"icon": Icons.work_outline, "label": "Thêm nhân sự"},
+              {"icon": Icons.task_alt, "label": "Duyệt\nđơn từ", "isAdminRequest": true},
             ]);
           }
 
@@ -295,31 +297,95 @@ class HomeIconGrid extends StatelessWidget {
             ),
             itemCount: gridItems.length,
             itemBuilder: (context, index) {
+              final item = gridItems[index];
+              final isAdminRequest = item["isAdminRequest"] == true;
+
+              void handleTap() {
+                if (item["label"] == "Yêu cầu nhân sự") {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const RequestPersonel()));
+                }
+                if (item["label"] == "Lịch sử\nchấm công") {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const LichSuChamCongScreen()));
+                }
+                if (isAdmin) {
+                  if (item["label"] == "Thêm nhân sự") {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const AddEmployeeScreen()));
+                  }
+                  if (item["label"] == "Danh sách\nnhân sự") {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const EmployeeListScreen()));
+                  }
+                  if (isAdminRequest) {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminRequestScreen()));
+                  }
+                }
+              }
+
+              if (isAdminRequest) {
+                return GestureDetector(
+                  onTap: handleTap,
+                  child: Container(
+                    color: Colors.transparent,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        StreamBuilder<QuerySnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('requests')
+                              .where('status', isEqualTo: 'pending')
+                              .snapshots(),
+                          builder: (ctx, snap) {
+                            final count = snap.data?.docs.length ?? 0;
+                            return Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Icon(item["icon"], color: Colors.orange, size: 50),
+                                if (count > 0)
+                                  Positioned(
+                                    top: -4,
+                                    right: -6,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(3),
+                                      decoration: const BoxDecoration(
+                                          color: Colors.red,
+                                          shape: BoxShape.circle),
+                                      constraints: const BoxConstraints(
+                                          minWidth: 18, minHeight: 18),
+                                      child: Text(
+                                        '$count',
+                                        style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 5),
+                        Text(item["label"],
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 13, color: Colors.black87),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
               return GestureDetector(
-                onTap: () {
-                  if (gridItems[index]["label"] == "Yêu cầu nhân sự") {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const RequestPersonel()));
-                  }
-                  if (gridItems[index]["label"] == "Lịch sử\nchấm công") {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const LichSuChamCongScreen()));
-                  }
-                  if (isAdmin) {
-                    if (gridItems[index]["label"] == "Thêm nhân sự") {
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => const AddEmployeeScreen()));
-                    }
-                    if (gridItems[index]["label"] == "Danh sách\nnhân sự") {
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => const EmployeeListScreen()));
-                    }
-                  }
-                },
+                onTap: handleTap,
                 child: Container(
                   color: Colors.transparent,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(gridItems[index]["icon"], color: Colors.orange, size: 50),
+                      Icon(item["icon"], color: Colors.orange, size: 50),
                       const SizedBox(height: 5),
-                      Text(gridItems[index]["label"], textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, color: Colors.black87), maxLines: 2, overflow: TextOverflow.ellipsis),
+                      Text(item["label"], textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, color: Colors.black87), maxLines: 2, overflow: TextOverflow.ellipsis),
                     ],
                   ),
                 ),

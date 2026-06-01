@@ -7,6 +7,7 @@ import 'package:doan_mobile/user_avatar.dart';
 import 'package:doan_mobile/login_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:doan_mobile/admin_tools/employee_list_screen.dart';
+import 'package:doan_mobile/admin_tools/admin_request_screen.dart';
 import 'dart:convert';
 
 class ProfileScreen extends StatefulWidget {
@@ -142,6 +143,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const EmployeeListScreen()),
+                  );
+                },
+              ),
+              _buildMenuItem(
+                Icons.task_alt,
+                "Quản lý đơn từ",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AdminRequestScreen()),
                   );
                 },
               ),

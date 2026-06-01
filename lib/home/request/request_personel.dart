@@ -1,4 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 import 'choose_request.dart';
 
 class RequestPersonel extends StatefulWidget {
@@ -10,110 +14,122 @@ class RequestPersonel extends StatefulWidget {
 
 class _RequestPersonelState extends State<RequestPersonel> {
   late DateTime _selectedMonth;
-
-  final Map<String, Map<String, List<Map<String, dynamic>>>> _mockRequests = {
-    "2026-03": {
-      "pending": [
-        {
-          "title": "Đi công tác",
-          "date": "T4, 25/03",
-          "details": [
-            {"label": "NGÀY BẮT ĐẦU", "value": "25-03-2026 17:00"},
-            {"label": "NGÀY KẾT THÚC", "value": "25-03-2026 21:00"},
-            {"label": "CA", "value": "Phục vụ theo giờ (17h - 21h)"},
-            {"label": "ĐỊA ĐIỂM", "value": "HCM.Q10.HADO"},
-          ]
-        }
-      ],
-      "approved": [
-        {
-          "title": "Quên chấm công",
-          "date": "CN, 22/03",
-          "details": [
-            {"label": "GIỜ BẮT ĐẦU", "value": "17-03-2026 18:00"},
-            {"label": "GIỜ KẾT THÚC", "value": "17-03-2026 21:30"},
-            {"label": "CA", "value": "Phục vụ theo giờ 18h00-21h30"},
-            {
-              "label": "LÝ DO",
-              "value": "Kính gửi anh/chị ngày 17/03, em có ca làm từ 18h-21h30, em quên chấm công vì không mang theo điện thoại. Nhờ anh/chị hỗ trợ duyệt phiếu giúp em.",
-              "isFullWidth": true
-            },
-          ]
-        },
-        {
-          "title": "Làm thêm giờ",
-          "date": "CN, 08/03",
-          "details": [
-            {"label": "NGÀY", "value": "07-03-2026"},
-            {"label": "THỜI GIAN", "value": "09:00 - 11:00"},
-            {"label": "LOẠI", "value": "Làm thêm giờ"},
-            {
-              "label": "LÝ DO",
-              "value": "Ngày 07/03, vì có đơn hàng gói món lớn nên em lên sớm tăng ca hỗ trợ từ 9h-11h. Nhờ anh/chị hỗ trợ duyệt phiếu giúp em. Em cảm ơn ạ.",
-              "isFullWidth": true
-            },
-          ]
-        }
-      ],
-      "rejected": []
-    },
-    "2026-02": {
-      "pending": [],
-      "approved": [],
-      "rejected": [
-        {
-          "title": "Làm thêm giờ",
-          "date": "T7, 14/02",
-          "details": [
-            {"label": "NGÀY", "value": "14-02-2026"},
-            {"label": "THỜI GIAN", "value": "15:00 - 16:00"},
-            {
-              "label": "LÝ DO",
-              "value": "Kính gửi anh/chị, ngày 14/02 vì lý do tổng dọn vệ sinh nhà hàng nên em đã làm thêm giờ từ 15h-16h. Nhờ anh/chị hỗ trợ duyệt phiếu giúp em.",
-              "isFullWidth": true
-            },
-          ]
-        },
-        {
-          "title": "Phiếu chấm công hộ",
-          "date": "T6, 13/02",
-          "details": [
-            {"label": "GIỜ BẮT ĐẦU", "value": "12-02-2026 10:00"},
-            {"label": "GIỜ KẾT THÚC", "value": "12-02-2026 15:00"},
-            {"label": "CÁC NGÀY CHẤM HỘ", "value": "12-02-2026"},
-            {
-              "label": "LÝ DO",
-              "value": "Kính gửi anh/chị, Ngày 12/02 em có ca làm từ 10h-15h. Vì lý do app lỗi nên không đăng nhập và chấm công được. Nhờ anh/chị hỗ trợ duyệt phiếu giúp em.",
-              "isFullWidth": true
-            },
-          ]
-        }
-      ]
-    }
-  };
+  int _pendingCount = 0;
+  StreamSubscription<QuerySnapshot>? _countSubscription;
 
   @override
   void initState() {
     super.initState();
-    DateTime now = DateTime.now();
-    _selectedMonth = DateTime(now.year, now.month, 1);
+    _selectedMonth = DateTime(DateTime.now().year, DateTime.now().month, 1);
+    _subscribePendingCount();
   }
 
-  void _previousMonth() {
-    setState(() {
-      _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1, 1);
+  @override
+  void dispose() {
+    _countSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _subscribePendingCount() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    _countSubscription = FirebaseFirestore.instance
+        .collection('requests')
+        .where('userId', isEqualTo: user.uid)
+        .where('status', isEqualTo: 'pending')
+        .snapshots()
+        .listen((snapshot) {
+      if (mounted) setState(() => _pendingCount = snapshot.docs.length);
     });
   }
 
-  void _nextMonth() {
-    setState(() {
-      _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 1);
-    });
+  void _previousMonth() => setState(() {
+        _selectedMonth =
+            DateTime(_selectedMonth.year, _selectedMonth.month - 1, 1);
+      });
+
+  void _nextMonth() => setState(() {
+        _selectedMonth =
+            DateTime(_selectedMonth.year, _selectedMonth.month + 1, 1);
+      });
+
+  Stream<QuerySnapshot> _getStream(String status) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return const Stream.empty();
+
+    return FirebaseFirestore.instance
+        .collection('requests')
+        .where('userId', isEqualTo: user.uid)
+        .where('status', isEqualTo: status)
+        .snapshots();
+  }
+
+  List<QueryDocumentSnapshot> _filterByMonth(List<QueryDocumentSnapshot> docs) {
+    return docs.where((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      final createdAt = data['createdAt'];
+      if (createdAt == null) return false;
+      final dt = (createdAt as Timestamp).toDate();
+      return dt.year == _selectedMonth.year && dt.month == _selectedMonth.month;
+    }).toList()
+      ..sort((a, b) {
+        final aData = a.data() as Map<String, dynamic>;
+        final bData = b.data() as Map<String, dynamic>;
+        final aTs = aData['createdAt'] as Timestamp?;
+        final bTs = bData['createdAt'] as Timestamp?;
+        if (aTs == null || bTs == null) return 0;
+        return bTs.compareTo(aTs);
+      });
+  }
+
+  Future<void> _deleteRequest(String docId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text("Xác nhận hủy"),
+        content: const Text("Bạn có chắc chắn muốn hủy yêu cầu này không?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Không", style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Hủy yêu cầu",
+                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await FirebaseFirestore.instance.collection('requests').doc(docId).delete();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text("Đã hủy yêu cầu."),
+              backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text("Lỗi: $e"),
+              backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    int daysInMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0).day;
+    int daysInMonth =
+        DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0).day;
     String monthStr = _selectedMonth.month.toString().padLeft(2, '0');
     String yearStr = _selectedMonth.year.toString();
 
@@ -129,25 +145,51 @@ class _RequestPersonelState extends State<RequestPersonel> {
           ),
           title: const Text(
             "Yêu cầu của tôi",
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+            style: TextStyle(
+                color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
           ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.filter_alt_outlined, color: Colors.white),
-              onPressed: () {},
-            ),
-          ],
           elevation: 0,
-          bottom: const TabBar(
+          bottom: TabBar(
             indicatorColor: Colors.white,
             indicatorWeight: 3,
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white70,
-            labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            labelStyle:
+                const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             tabs: [
-              Tab(text: "Chờ duyệt"),
-              Tab(text: "Chấp thuận"),
-              Tab(text: "Từ chối"),
+              Tab(
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      child: Text("Chờ duyệt"),
+                    ),
+                    if (_pendingCount > 0)
+                      Positioned(
+                        top: -6,
+                        right: -4,
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: const BoxDecoration(
+                              color: Colors.red, shape: BoxShape.circle),
+                          constraints: const BoxConstraints(
+                              minWidth: 18, minHeight: 18),
+                          child: Text(
+                            '$_pendingCount',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const Tab(text: "Chấp thuận"),
+              const Tab(text: "Từ chối"),
             ],
           ),
         ),
@@ -155,42 +197,49 @@ class _RequestPersonelState extends State<RequestPersonel> {
           children: [
             Container(
               color: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
-                  const Text("Tháng", style: TextStyle(color: Colors.black87, fontSize: 14)),
+                  const Text("Tháng",
+                      style: TextStyle(color: Colors.black87, fontSize: 14)),
                   const SizedBox(width: 10),
-                  Container(width: 1, height: 20, color: Colors.grey.shade300),
+                  Container(
+                      width: 1, height: 20, color: Colors.grey.shade300),
                   Expanded(
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.chevron_left, size: 24, color: Colors.black87),
+                          icon: const Icon(Icons.chevron_left,
+                              size: 24, color: Colors.black87),
                           onPressed: _previousMonth,
                         ),
                         Text(
                           "01 - $daysInMonth/$monthStr/$yearStr",
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 14),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.chevron_right, size: 24, color: Colors.black87),
+                          icon: const Icon(Icons.chevron_right,
+                              size: 24, color: Colors.black87),
                           onPressed: _nextMonth,
                         ),
                       ],
                     ),
-                  )
+                  ),
                 ],
               ),
             ),
-            const Divider(height: 1, thickness: 1, color: Color(0xFFEEEEEE)),
-
+            const Divider(
+                height: 1, thickness: 1, color: Color(0xFFEEEEEE)),
             Expanded(
               child: TabBarView(
                 children: [
-                  _buildTabContent("pending", Colors.orange, "Chờ duyệt"),
-                  _buildTabContent("approved", Colors.green, "Đồng ý"),
-                  _buildTabContent("rejected", Colors.red, "Từ chối"),
+                  _buildStreamTab("pending", Colors.orange, "Chờ duyệt",
+                      canDelete: true),
+                  _buildStreamTab("approved", Colors.green, "Chấp thuận"),
+                  _buildStreamTab("rejected", Colors.red, "Từ chối"),
                 ],
               ),
             ),
@@ -199,65 +248,89 @@ class _RequestPersonelState extends State<RequestPersonel> {
         floatingActionButton: FloatingActionButton(
           backgroundColor: Colors.orange,
           shape: const CircleBorder(),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const ChooseRequest()),
-            );
-          },
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ChooseRequest()),
+          ),
           child: const Icon(Icons.add, color: Colors.white, size: 28),
         ),
       ),
     );
   }
 
-  Widget _buildTabContent(String statusKey, Color statusColor, String statusText) {
-    String currentMonthKey = "${_selectedMonth.year}-${_selectedMonth.month.toString().padLeft(2, '0')}";
+  Widget _buildStreamTab(String status, Color statusColor, String statusText,
+      {bool canDelete = false}) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _getStream(status),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+              child: CircularProgressIndicator(color: Colors.orange));
+        }
 
-    var monthData = _mockRequests[currentMonthKey];
-    List<dynamic> requests = (monthData != null && monthData[statusKey] != null)
-        ? monthData[statusKey]!
-        : [];
+        if (snapshot.hasError) {
+          return Center(
+              child: Text("Lỗi tải dữ liệu: ${snapshot.error}",
+                  style: const TextStyle(color: Colors.red)));
+        }
 
-    if (requests.isEmpty) {
-      return const Center(
-        child: Text(
-          "Không có yêu cầu nào",
-          style: TextStyle(color: Colors.grey, fontSize: 16, fontWeight: FontWeight.w500),
-        ),
-      );
-    }
+        final docs = _filterByMonth(snapshot.data?.docs ?? []);
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: requests.length,
-      itemBuilder: (context, index) {
-        var req = requests[index];
-        return _buildRequestCard(
-          statusText: statusText,
-          statusColor: statusColor,
-          title: req["title"],
-          date: req["date"],
-          details: req["details"],
+        if (docs.isEmpty) {
+          return const Center(
+            child: Text(
+              "Không có yêu cầu nào",
+              style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500),
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: docs.length,
+          itemBuilder: (context, index) {
+            final doc = docs[index];
+            final data = doc.data() as Map<String, dynamic>;
+            return _buildRequestCard(
+              doc: doc,
+              data: data,
+              statusText: statusText,
+              statusColor: statusColor,
+              canDelete: canDelete,
+            );
+          },
         );
       },
     );
   }
 
   Widget _buildRequestCard({
+    required QueryDocumentSnapshot doc,
+    required Map<String, dynamic> data,
     required String statusText,
     required Color statusColor,
-    required String title,
-    required String date,
-    required List<dynamic> details,
+    bool canDelete = false,
   }) {
+    final createdAt = data['createdAt'] as Timestamp?;
+    final dateStr = createdAt != null
+        ? DateFormat('dd/MM/yyyy').format(createdAt.toDate())
+        : '';
+    final details = _buildDetails(data);
+    final adminNote = data['adminNote'] as String?;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2)),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2)),
         ],
       ),
       child: Padding(
@@ -269,13 +342,21 @@ class _RequestPersonelState extends State<RequestPersonel> {
               children: [
                 const CircleAvatar(
                   radius: 16,
-                  backgroundImage: NetworkImage('https://avatar.talk.zdn.vn/default.jpg'),
+                  backgroundColor: Colors.orange,
+                  child: Icon(Icons.person, color: Colors.white, size: 18),
                 ),
                 const SizedBox(width: 10),
-                const Text("Trương Tô Đình Phước", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                const Spacer(),
+                Expanded(
+                  child: Text(
+                    data['userName'] ?? 'Nhân viên',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 14),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     border: Border.all(color: statusColor, width: 1),
@@ -283,9 +364,20 @@ class _RequestPersonelState extends State<RequestPersonel> {
                   ),
                   child: Text(
                     statusText,
-                    style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                        color: statusColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600),
                   ),
-                )
+                ),
+                if (canDelete) ...[
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => _deleteRequest(doc.id),
+                    child: const Icon(Icons.delete_outline,
+                        color: Colors.red, size: 20),
+                  ),
+                ],
               ],
             ),
             const Padding(
@@ -297,47 +389,192 @@ class _RequestPersonelState extends State<RequestPersonel> {
                 Container(
                   width: 3,
                   height: 16,
-                  decoration: BoxDecoration(color: statusColor, borderRadius: BorderRadius.circular(10)),
+                  decoration: BoxDecoration(
+                      color: statusColor,
+                      borderRadius: BorderRadius.circular(10)),
                 ),
                 const SizedBox(width: 8),
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                const Spacer(),
-                Text(date, style: const TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w500)),
+                Expanded(
+                  child: Text(
+                    data['type'] ?? '',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
+                ),
+                Text(
+                  dateStr,
+                  style: const TextStyle(
+                      color: Colors.grey,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500),
+                ),
               ],
             ),
-            const SizedBox(height: 12),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                double halfWidth = (constraints.maxWidth / 2) - 5;
-                return Wrap(
-                  spacing: 10,
-                  runSpacing: 12,
-                  children: details.map((item) {
-                    bool isFullWidth = item['isFullWidth'] == true;
-                    return SizedBox(
-                      width: isFullWidth ? constraints.maxWidth : halfWidth,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item['label'],
-                            style: TextStyle(color: Colors.grey.shade500, fontSize: 11, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            item['value'],
-                            style: const TextStyle(color: Colors.black87, fontSize: 13, height: 1.4),
-                          ),
-                        ],
+            if (details.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final halfWidth = (constraints.maxWidth / 2) - 5;
+                  return Wrap(
+                    spacing: 10,
+                    runSpacing: 12,
+                    children: details.map((item) {
+                      final isFullWidth = item['isFullWidth'] == 'true';
+                      return SizedBox(
+                        width:
+                            isFullWidth ? constraints.maxWidth : halfWidth,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item['label']!,
+                              style: TextStyle(
+                                  color: Colors.grey.shade500,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              item['value']!,
+                              style: const TextStyle(
+                                  color: Colors.black87,
+                                  fontSize: 13,
+                                  height: 1.4),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
+            ],
+            if (adminNote != null && adminNote.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.info_outline,
+                        color: Colors.red, size: 16),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        "Lý do từ chối: $adminNote",
+                        style: const TextStyle(
+                            color: Colors.red, fontSize: 12, height: 1.4),
                       ),
-                    );
-                  }).toList(),
-                );
-              },
-            ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  List<Map<String, String>> _buildDetails(Map<String, dynamic> data) {
+    final type = data['type'] as String? ?? '';
+    final List<Map<String, String>> details = [];
+
+    String fmtTs(dynamic ts) {
+      if (ts == null) return '';
+      final dt = (ts as Timestamp).toDate();
+      return DateFormat('dd/MM/yyyy HH:mm').format(dt);
+    }
+
+    String fmtDate(dynamic ts) {
+      if (ts == null) return '';
+      final dt = (ts as Timestamp).toDate();
+      return DateFormat('dd/MM/yyyy').format(dt);
+    }
+
+    if (type == 'Quên chấm công' ||
+        type == 'Làm thêm giờ' ||
+        type == 'Chấm công hộ') {
+      if (data['date'] != null)
+        details.add({'label': 'NGÀY', 'value': data['date']});
+      if (data['startTime'] != null)
+        details.add({'label': 'GIỜ BẮT ĐẦU', 'value': fmtTs(data['startTime'])});
+      if (data['endTime'] != null)
+        details.add({'label': 'GIỜ KẾT THÚC', 'value': fmtTs(data['endTime'])});
+      if (data['shiftName'] != null && data['shiftName'] != '')
+        details.add({'label': 'CA LÀM', 'value': data['shiftName']});
+      if (data['calculatedHours'] != null)
+        details.add({'label': 'SỐ GIỜ', 'value': '${data['calculatedHours']} giờ'});
+    }
+
+    if (type == 'Nghỉ phép') {
+      if (data['startTime'] != null)
+        details.add({'label': 'NGÀY BẮT ĐẦU', 'value': fmtDate(data['startTime'])});
+      if (data['endTime'] != null)
+        details.add({'label': 'NGÀY KẾT THÚC', 'value': fmtDate(data['endTime'])});
+      if (data['leaveType'] != null)
+        details.add({'label': 'LOẠI NGHỈ', 'value': data['leaveType']});
+    }
+
+    if (type == 'Đi công tác') {
+      if (data['startTime'] != null)
+        details.add({'label': 'NGÀY ĐI', 'value': fmtDate(data['startTime'])});
+      if (data['endTime'] != null)
+        details.add({'label': 'NGÀY VỀ', 'value': fmtDate(data['endTime'])});
+      if (data['location'] != null)
+        details.add({'label': 'ĐỊA ĐIỂM', 'value': data['location']});
+    }
+
+    if (type == 'Đề xuất điều chỉnh lương') {
+      if (data['currentSalary'] != null)
+        details.add({'label': 'LƯƠNG HIỆN TẠI', 'value': data['currentSalary']});
+      if (data['proposedSalary'] != null)
+        details.add({'label': 'LƯƠNG ĐỀ XUẤT', 'value': data['proposedSalary']});
+    }
+
+    if (type == 'Đề xuất thăng tiến') {
+      if (data['currentPosition'] != null)
+        details.add({'label': 'VỊ TRÍ HIỆN TẠI', 'value': data['currentPosition']});
+      if (data['proposedPosition'] != null)
+        details.add({'label': 'VỊ TRÍ ĐỀ XUẤT', 'value': data['proposedPosition']});
+    }
+
+    if (type == 'Đề xuất điều chuyển') {
+      if (data['currentPosition'] != null)
+        details.add({'label': 'CHI NHÁNH HIỆN TẠI', 'value': data['currentPosition']});
+      if (data['targetBranch'] != null)
+        details.add({'label': 'CHI NHÁNH MUỐN CHUYỂN', 'value': data['targetBranch']});
+    }
+
+    if (type == 'Đơn thôi việc') {
+      if (data['expectedLastDay'] != null)
+        details.add({'label': 'NGÀY NGHỈ DỰ KIẾN', 'value': fmtDate(data['expectedLastDay'])});
+    }
+
+    if (type == 'Đề xuất tuyển dụng') {
+      if (data['recruitPosition'] != null)
+        details.add({'label': 'VỊ TRÍ CẦN TUYỂN', 'value': data['recruitPosition']});
+      if (data['quantity'] != null)
+        details.add({'label': 'SỐ LƯỢNG', 'value': '${data['quantity']}'});
+      if (data['requirements'] != null && data['requirements'] != '')
+        details.add({'label': 'YÊU CẦU', 'value': data['requirements'], 'isFullWidth': 'true'});
+    }
+
+    if (type == 'Đề xuất đồng phục') {
+      if (data['uniformType'] != null)
+        details.add({'label': 'LOẠI ĐỒNG PHỤC', 'value': data['uniformType']});
+      if (data['quantity'] != null)
+        details.add({'label': 'SỐ LƯỢNG', 'value': '${data['quantity']}'});
+    }
+
+    if (data['reason'] != null && data['reason'] != '')
+      details.add({'label': 'LÝ DO', 'value': data['reason'], 'isFullWidth': 'true'});
+
+    return details;
   }
 }
