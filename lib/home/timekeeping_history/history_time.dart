@@ -248,7 +248,6 @@ class _LichSuChamCongScreenState extends State<LichSuChamCongScreen> {
 
                   final vaoRaList = data["vaoRaData"] as List<Map<String, dynamic>>;
                   final bangCongMap = data["bangCongData"] as Map<String, dynamic>?;
-
                   return TabBarView(
                     children: [
                       TabVaoRa(data: vaoRaList),
