@@ -307,11 +307,25 @@ class HomeIconGrid extends StatelessWidget {
                     Navigator.push(context, MaterialPageRoute(builder: (context) => const LichSuChamCongScreen()));
                   }
                   if (isAdmin) {
-                    if (gridItems[index]["label"] == "Thêm nhân sự") {
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => const AddEmployeeScreen()));
+                    if (gridItems[index]["label"] == "Bảng công\nAdmin") {
+                      Navigator.push(
+                        context,
+                          MaterialPageRoute(builder: (context) => const AdminBangCongScreen()),
+                      );
                     }
+
+                    if (gridItems[index]["label"] == "Thêm nhân sự") {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const AddEmployeeScreen()),
+                      );
+                    }
+
                     if (gridItems[index]["label"] == "Danh sách\nnhân sự") {
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => const EmployeeListScreen()));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const EmployeeListScreen()),
+                      );
                     }
                   }
                 },
