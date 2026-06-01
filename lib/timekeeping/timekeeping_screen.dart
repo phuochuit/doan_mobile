@@ -2,6 +2,8 @@ import 'package:doan_mobile/user_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ChamCongScreen extends StatefulWidget {
   const ChamCongScreen({super.key});
@@ -20,12 +22,141 @@ class _ChamCongScreenState extends State<ChamCongScreen> {
   double currentDist = double.infinity;
 
   final List<Map<String, String>> _logs = [];
+  String? _currentCheckInDocId;
+  Map<String, dynamic>? _currentUserData;
 
   @override
   void initState() {
     super.initState();
+    _loadCurrentUserData();
     _initFakeOfficeLocation();
+    _loadTodayOpenCheckIn();
   }
+
+  Future<void> _loadCurrentUserData() async {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return;
+
+  final doc = await FirebaseFirestore.instance
+      .collection('users')
+      .doc(user.uid)
+      .get();
+
+  if (doc.exists) {
+    setState(() {
+      _currentUserData = doc.data();
+    });
+  }
+}
+
+Future<void> _loadTodayOpenCheckIn() async {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return;
+
+  final now = DateTime.now();
+  final dateKey = DateFormat('yyyy-MM-dd').format(now);
+
+  final snapshot = await FirebaseFirestore.instance
+      .collection('checkin_logs')
+      .where('userId', isEqualTo: user.uid)
+      .where('dateKey', isEqualTo: dateKey)
+      .where('status', isEqualTo: 'working')
+      .limit(1)
+      .get();
+
+  if (snapshot.docs.isNotEmpty) {
+    setState(() {
+      isCheckedIn = true;
+      _currentCheckInDocId = snapshot.docs.first.id;
+    });
+  }
+}
+
+Future<void> _saveCheckInOutToFirestore({
+  required bool willCheckIn,
+  required Position currentPos,
+}) async {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return;
+
+  final now = DateTime.now();
+  final dateKey = DateFormat('yyyy-MM-dd').format(now);
+
+  final fullName = _currentUserData?['fullName'] ?? 'Chưa cập nhật';
+  final employeeCode = _currentUserData?['employeeCode'] ?? '';
+  final branchId = _currentUserData?['branchId'] ?? '';
+  final department = _currentUserData?['department'] ?? '';
+  final hourlyRate = (_currentUserData?['hourlyRate'] ?? 28000) as num;
+
+  if (willCheckIn) {
+    final doc = await FirebaseFirestore.instance.collection('checkin_logs').add({
+      'userId': user.uid,
+      'email': user.email,
+      'fullName': fullName,
+      'employeeCode': employeeCode,
+      'branchId': branchId,
+      'department': department,
+      'hourlyRate': hourlyRate,
+
+      'dateKey': dateKey,
+      'day': now.day,
+      'month': now.month,
+      'year': now.year,
+
+      'checkInTime': Timestamp.fromDate(now),
+      'checkOutTime': null,
+
+      'shiftName': 'Ca làm trong ngày',
+      'shiftStart': '10:00',
+      'shiftEnd': '14:00',
+
+      'workMinutes': 0,
+      'overtimeMinutes': 0,
+      'status': 'working',
+
+      'checkInLat': currentPos.latitude,
+      'checkInLong': currentPos.longitude,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    _currentCheckInDocId = doc.id;
+  } else {
+    if (_currentCheckInDocId == null) return;
+
+    final docRef = FirebaseFirestore.instance
+        .collection('checkin_logs')
+        .doc(_currentCheckInDocId);
+
+    final doc = await docRef.get();
+
+    int workMinutes = 0;
+
+    if (doc.exists) {
+      final data = doc.data() as Map<String, dynamic>;
+      final checkInTimestamp = data['checkInTime'];
+
+      if (checkInTimestamp is Timestamp) {
+        final checkInTime = checkInTimestamp.toDate();
+        workMinutes = now.difference(checkInTime).inMinutes;
+      }
+    }
+
+    final overtimeMinutes = workMinutes > 240 ? workMinutes - 240 : 0;
+
+    await docRef.update({
+      'checkOutTime': Timestamp.fromDate(now),
+      'workMinutes': workMinutes,
+      'overtimeMinutes': overtimeMinutes,
+      'status': 'completed',
+
+      'checkOutLat': currentPos.latitude,
+      'checkOutLong': currentPos.longitude,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    _currentCheckInDocId = null;
+  }
+}
 
   Future<void> _initFakeOfficeLocation() async {
     try {
