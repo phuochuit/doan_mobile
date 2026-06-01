@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'work_schedule.dart';
 import 'request/request_personel.dart';
 import 'timekeeping_history/history_time.dart';
+import 'timekeeping_history/tab_worksheet.dart';
 import 'package:doan_mobile/user_avatar.dart';
 import 'package:doan_mobile/admin_tools/add_employee_screen.dart';
 import 'package:doan_mobile/admin_tools/edit_employee_screen.dart';
@@ -268,9 +269,11 @@ class HomeIconGrid extends StatelessWidget {
             {"icon": Icons.history_outlined, "label": "Lịch sử\nchấm công"},
             {"icon": Icons.menu_book_outlined, "label": "Kiểm tra"},
           ];
+          
 
           if (isAdmin) {
             gridItems.addAll([
+              {"icon": Icons.table_chart_outlined, "label": "Bảng công\nAdmin"},
               {"icon": Icons.groups_outlined, "label": "Danh sách\nnhân sự"},
               {"icon": Icons.work_outline, "label": "Thêm nhân sự"},
             ]);
@@ -304,11 +307,25 @@ class HomeIconGrid extends StatelessWidget {
                     Navigator.push(context, MaterialPageRoute(builder: (context) => const LichSuChamCongScreen()));
                   }
                   if (isAdmin) {
-                    if (gridItems[index]["label"] == "Thêm nhân sự") {
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => const AddEmployeeScreen()));
+                    if (gridItems[index]["label"] == "Bảng công\nAdmin") {
+                      Navigator.push(
+                        context,
+                          MaterialPageRoute(builder: (context) => const AdminBangCongScreen()),
+                      );
                     }
+
+                    if (gridItems[index]["label"] == "Thêm nhân sự") {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const AddEmployeeScreen()),
+                      );
+                    }
+
                     if (gridItems[index]["label"] == "Danh sách\nnhân sự") {
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => const EmployeeListScreen()));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const EmployeeListScreen()),
+                      );
                     }
                   }
                 },
