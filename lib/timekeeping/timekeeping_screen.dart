@@ -34,129 +34,129 @@ class _ChamCongScreenState extends State<ChamCongScreen> {
   }
 
   Future<void> _loadCurrentUserData() async {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) return;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
 
-  final doc = await FirebaseFirestore.instance
-      .collection('users')
-      .doc(user.uid)
-      .get();
-
-  if (doc.exists) {
-    setState(() {
-      _currentUserData = doc.data();
-    });
-  }
-}
-
-Future<void> _loadTodayOpenCheckIn() async {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) return;
-
-  final now = DateTime.now();
-  final dateKey = DateFormat('yyyy-MM-dd').format(now);
-
-  final snapshot = await FirebaseFirestore.instance
-      .collection('checkin_logs')
-      .where('userId', isEqualTo: user.uid)
-      .where('dateKey', isEqualTo: dateKey)
-      .where('status', isEqualTo: 'working')
-      .limit(1)
-      .get();
-
-  if (snapshot.docs.isNotEmpty) {
-    setState(() {
-      isCheckedIn = true;
-      _currentCheckInDocId = snapshot.docs.first.id;
-    });
-  }
-}
-
-Future<void> _saveCheckInOutToFirestore({
-  required bool willCheckIn,
-  required Position currentPos,
-}) async {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) return;
-
-  final now = DateTime.now();
-  final dateKey = DateFormat('yyyy-MM-dd').format(now);
-
-  final fullName = _currentUserData?['fullName'] ?? 'Chưa cập nhật';
-  final employeeCode = _currentUserData?['employeeCode'] ?? '';
-  final branchId = _currentUserData?['branchId'] ?? '';
-  final department = _currentUserData?['department'] ?? '';
-  final hourlyRate = (_currentUserData?['hourlyRate'] ?? 28000) as num;
-
-  if (willCheckIn) {
-    final doc = await FirebaseFirestore.instance.collection('checkin_logs').add({
-      'userId': user.uid,
-      'email': user.email,
-      'fullName': fullName,
-      'employeeCode': employeeCode,
-      'branchId': branchId,
-      'department': department,
-      'hourlyRate': hourlyRate,
-
-      'dateKey': dateKey,
-      'day': now.day,
-      'month': now.month,
-      'year': now.year,
-
-      'checkInTime': Timestamp.fromDate(now),
-      'checkOutTime': null,
-
-      'shiftName': 'Ca làm trong ngày',
-      'shiftStart': '10:00',
-      'shiftEnd': '14:00',
-
-      'workMinutes': 0,
-      'overtimeMinutes': 0,
-      'status': 'working',
-
-      'checkInLat': currentPos.latitude,
-      'checkInLong': currentPos.longitude,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-
-    _currentCheckInDocId = doc.id;
-  } else {
-    if (_currentCheckInDocId == null) return;
-
-    final docRef = FirebaseFirestore.instance
-        .collection('checkin_logs')
-        .doc(_currentCheckInDocId);
-
-    final doc = await docRef.get();
-
-    int workMinutes = 0;
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .get();
 
     if (doc.exists) {
-      final data = doc.data() as Map<String, dynamic>;
-      final checkInTimestamp = data['checkInTime'];
-
-      if (checkInTimestamp is Timestamp) {
-        final checkInTime = checkInTimestamp.toDate();
-        workMinutes = now.difference(checkInTime).inMinutes;
-      }
+      setState(() {
+        _currentUserData = doc.data();
+      });
     }
-
-    final overtimeMinutes = workMinutes > 240 ? workMinutes - 240 : 0;
-
-    await docRef.update({
-      'checkOutTime': Timestamp.fromDate(now),
-      'workMinutes': workMinutes,
-      'overtimeMinutes': overtimeMinutes,
-      'status': 'completed',
-
-      'checkOutLat': currentPos.latitude,
-      'checkOutLong': currentPos.longitude,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-
-    _currentCheckInDocId = null;
   }
-}
+
+  Future<void> _loadTodayOpenCheckIn() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final now = DateTime.now();
+    final dateKey = DateFormat('yyyy-MM-dd').format(now);
+
+    final snapshot = await FirebaseFirestore.instance
+        .collection('checkin_logs')
+        .where('userId', isEqualTo: user.uid)
+        .where('dateKey', isEqualTo: dateKey)
+        .where('status', isEqualTo: 'working')
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isNotEmpty) {
+      setState(() {
+        isCheckedIn = true;
+        _currentCheckInDocId = snapshot.docs.first.id;
+      });
+    }
+  }
+
+  Future<void> _saveCheckInOutToFirestore({
+    required bool willCheckIn,
+    required Position currentPos,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final now = DateTime.now();
+    final dateKey = DateFormat('yyyy-MM-dd').format(now);
+
+    final fullName = _currentUserData?['fullName'] ?? 'Chưa cập nhật';
+    final employeeCode = _currentUserData?['employeeCode'] ?? '';
+    final branchId = _currentUserData?['branchId'] ?? '';
+    final department = _currentUserData?['department'] ?? '';
+    final hourlyRate = (_currentUserData?['hourlyRate'] ?? 28000) as num;
+
+    if (willCheckIn) {
+      final doc = await FirebaseFirestore.instance.collection('checkin_logs').add({
+        'userId': user.uid,
+        'email': user.email,
+        'fullName': fullName,
+        'employeeCode': employeeCode,
+        'branchId': branchId,
+        'department': department,
+        'hourlyRate': hourlyRate,
+
+        'dateKey': dateKey,
+        'day': now.day,
+        'month': now.month,
+        'year': now.year,
+
+        'checkInTime': Timestamp.fromDate(now),
+        'checkOutTime': null,
+
+        'shiftName': 'Ca làm trong ngày',
+        'shiftStart': '10:00',
+        'shiftEnd': '14:00',
+
+        'workMinutes': 0,
+        'overtimeMinutes': 0,
+        'status': 'working',
+
+        'checkInLat': currentPos.latitude,
+        'checkInLong': currentPos.longitude,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      _currentCheckInDocId = doc.id;
+    } else {
+      if (_currentCheckInDocId == null) return;
+
+      final docRef = FirebaseFirestore.instance
+          .collection('checkin_logs')
+          .doc(_currentCheckInDocId);
+
+      final doc = await docRef.get();
+
+      int workMinutes = 0;
+
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        final checkInTimestamp = data['checkInTime'];
+
+        if (checkInTimestamp is Timestamp) {
+          final checkInTime = checkInTimestamp.toDate();
+          workMinutes = now.difference(checkInTime).inMinutes;
+        }
+      }
+
+      final overtimeMinutes = workMinutes > 240 ? workMinutes - 240 : 0;
+  
+      await docRef.update({
+        'checkOutTime': Timestamp.fromDate(now),
+        'workMinutes': workMinutes,
+        'overtimeMinutes': overtimeMinutes,
+        'status': 'completed',
+  
+        'checkOutLat': currentPos.latitude,
+        'checkOutLong': currentPos.longitude,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      _currentCheckInDocId = null;
+    }
+  }
 
   Future<void> _initFakeOfficeLocation() async {
     try {
@@ -208,15 +208,27 @@ Future<void> _saveCheckInOutToFirestore({
       setState(() => currentDist = distance);
 
       if (distance <= allowedRadius) {
+        final bool willCheckIn = !isCheckedIn;
+
+        await _saveCheckInOutToFirestore(
+          willCheckIn: willCheckIn,
+          currentPos: currentPos,
+        );
+
         setState(() {
-          isCheckedIn = !isCheckedIn;
+          isCheckedIn = willCheckIn;
           isLoading = false;
           _logs.insert(0, {
             "time": DateFormat('HH:mm:ss').format(DateTime.now()),
             "type": isCheckedIn ? "Vào làm" : "Tan làm",
           });
         });
-        _showDialog("Thành công", "Bạn đã ${isCheckedIn ? 'Vào làm' : 'Tan làm'} thành công.\nKhoảng cách: ${distance.toStringAsFixed(0)}m");
+
+        _showDialog(
+          "Thành công",
+          "Bạn đã ${isCheckedIn ? 'Vào làm' : 'Tan làm'} thành công.\nKhoảng cách: ${distance.toStringAsFixed(0)}m",
+        );
+      
       } else {
         setState(() => isLoading = false);
         _showDialog("Thất bại", "Bạn đang ở ngoài vùng chấm công (${distance.toStringAsFixed(0)}m).\nVui lòng di chuyển lại gần văn phòng.");
