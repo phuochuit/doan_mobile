@@ -269,9 +269,11 @@ class HomeIconGrid extends StatelessWidget {
             {"icon": Icons.history_outlined, "label": "Lịch sử\nchấm công"},
             {"icon": Icons.menu_book_outlined, "label": "Kiểm tra"},
           ];
+          
 
           if (isAdmin) {
             gridItems.addAll([
+              {"icon": Icons.table_chart_outlined, "label": "Bảng công\nAdmin"},
               {"icon": Icons.groups_outlined, "label": "Danh sách\nnhân sự"},
               {"icon": Icons.work_outline, "label": "Thêm nhân sự"},
             ]);
