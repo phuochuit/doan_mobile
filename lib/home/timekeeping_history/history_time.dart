@@ -248,7 +248,6 @@ class _LichSuChamCongScreenState extends State<LichSuChamCongScreen> {
 
                   final vaoRaList = data["vaoRaData"] as List<Map<String, dynamic>>;
                   final bangCongMap = data["bangCongData"] as Map<String, dynamic>?;
-
                   return TabBarView(
                     children: [
                       TabVaoRa(data: vaoRaList),
@@ -256,66 +255,6 @@ class _LichSuChamCongScreenState extends State<LichSuChamCongScreen> {
                     ],
                   );
                 },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}          bottom: const TabBar(
-            indicatorColor: Colors.orange,
-            indicatorWeight: 3,
-            labelColor: Colors.orange,
-            unselectedLabelColor: Colors.grey,
-            labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-            tabs: [
-              Tab(text: "Vào/Ra"),
-              Tab(text: "Bảng công"),
-            ],
-          ),
-        ),
-        body: Column(
-          children: [
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  const Text("Tháng", style: TextStyle(color: Colors.black87, fontSize: 14)),
-                  const Icon(Icons.keyboard_arrow_down, size: 20, color: Colors.black87),
-                  const SizedBox(width: 10),
-                  Container(width: 1, height: 20, color: Colors.grey.shade300),
-                  Expanded(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.chevron_left, size: 24, color: Colors.black87),
-                          onPressed: _previousMonth,
-                        ),
-                        Text(
-                          "01 - $daysInMonth/$monthStr/$yearStr",
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.chevron_right, size: 24, color: Colors.black87),
-                          onPressed: _nextMonth,
-                        ),
-                      ],
-                    ),
-                  )
-                ],
-              ),
-            ),
-            const Divider(height: 1, thickness: 1, color: Color(0xFFEEEEEE)),
-
-            Expanded(
-              child: TabBarView(
-                children: [
-                  TabVaoRa(data: vaoRaList),
-                  TabBangCong(data: bangCongMap),
-                ],
               ),
             ),
           ],
